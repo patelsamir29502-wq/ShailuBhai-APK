@@ -1,0 +1,91 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Create Capacitor project
+        run: |
+          cat > package.json <<'EOF'
+          {
+            "name": "shailu-bhai-daily-collection",
+            "version": "1.0.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/core": "^8.0.0",
+              "xlsx": "^0.18.5"
+            },
+            "devDependencies": {
+              "@capacitor/android": "^8.0.0",
+              "@capacitor/cli": "^8.0.0"
+            }
+          }
+          EOF
+
+          npm install
+
+          mkdir -p www
+          cp index.html www/index.html
+
+          node - <<'EOF'
+          const fs = require('fs');
+          const p = 'www/index.html';
+          let s = fs.readFileSync(p, 'utf8');
+          s = s.replace(
+            'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+            'xlsx.full.min.js'
+          );
+          fs.writeFileSync(p, s);
+          EOF
+
+          cp node_modules/xlsx/dist/xlsx.full.min.js www/xlsx.full.min.js
+
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.shailubhai.dailycollection",
+            "appName": "Shailu Bhai Daily Collection",
+            "webDir": "www",
+            "server": {
+              "androidScheme": "https"
+            }
+          }
+          EOF
+
+      - name: Add Android
+        run: npx cap add android
+
+      - name: Sync Android
+        run: npx cap sync android
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: shailu-bhai-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
