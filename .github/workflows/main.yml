@@ -19,7 +19,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -49,6 +48,7 @@ jobs:
 
           mkdir -p www
           cp index.html www/index.html
+          cp node_modules/xlsx/dist/xlsx.full.min.js www/xlsx.full.min.js
 
           node - <<'EOF'
           const fs = require('fs');
@@ -60,8 +60,6 @@ jobs:
           );
           fs.writeFileSync(p, s);
           EOF
-
-          cp node_modules/xlsx/dist/xlsx.full.min.js www/xlsx.full.min.js
 
           cat > capacitor.config.json <<'EOF'
           {
